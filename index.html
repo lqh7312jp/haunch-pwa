@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
+  <meta charset="UTF-8">
+  <meta name="theme-color" content="#1976d2"> 
+  <title>ハンチ部 統合計算ツール</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #aaa; padding: 6px 10px; }
+    input[type="number"] { width: 80px; }
+    select { width: 180px; }
+    .ok { color: green; font-weight: bold; }
+    .ng { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+<h2>ハンチ部 支柱・スラブ根太・斜部構造材 統合計算</h2>
+
+<div style="display: flex; align-items: flex-start; gap: 20px;">
+  <!-- 左側：入力 -->
+  <div style="flex: 1.5;">
+    <h3>【条件・許容荷重】</h3>
+    <table>
+      <tr><td>コンクリート重量 ρ</td><td><input id="rho" type="number" value="25"> kN/m³</td></tr>
+      <tr><td>型枠・支保工重量 W0</td><td><input id="W0" type="number" value="0.5"> kN/m²</td></tr>
+      <tr><td>衝撃荷重 Wc</td><td><input id="Wc" type="number" value="2.5"> kN/m²</td></tr>
+      <tr><td>支柱許容荷重 P</td><td><input id="P_allow" type="number" value="65"> kN</td></tr>
+    </table>
+
+    <h3>【入力項目】</h3>
+    <table>
+      <tr><td>ハンチ高さ H1</td><td><input id="H1" type="number" value="30"></td><td>cm</td></tr>
+      <tr><td>ハンチ幅 W1</td><td><input id="W1" type="number" value="30"></td><td>cm</td></tr>
+      <tr><td>スラブ厚 t</td><td><input id="t" type="number" value="15"></td><td>cm</td></tr>
+      <tr><td>大引きX1</td><td><input id="X1" type="number" value="180"></td><td>cm</td></tr>
+      <tr><td>大引きX2</td><td><input id="X2" type="number" value="180"></td><td>cm</td></tr>
+      <tr><td>壁との離れ Y1</td><td><input id="Y1" type="number" value="45"></td><td>cm</td></tr>
+      <tr><td>支柱ピッチ Y2</td><td><input id="Y2" type="number" value="90"></td><td>cm</td></tr>
+      
+      <tr><td>作業床高さ</td><td><input id="floorHeight" type="number" value="100"> </td><td>cm</td></tr>
+    </table>
+
+    <h3>【スラブ側　張り出し 根太材（方持ち梁）】</h3>
+    <table>
+      <tr><td>スラブ根太ピッチ Ln</td><td><input id="Ln_slab" type="number" value="30"></td><td>cm</td></tr>
+      <tr><td>材種</td>
+        <td colspan="2">
+          <select id="joistTypeSlab">
+            <option value="pipe">単管パイプ φ48.6</option>
+            <option value="box60">60角鋼管</option>
+            <option value="box100">100角鋼管</option>
+            <option value="stronglight">ストロングライト</option>
+          </select>
+        </td>
+      </tr>
+    </table>
+
+    <h3>【斜部構造材（型枠〜大引き）】</h3>
+    <table>
+      <tr><td>型枠材</td>
+        <td>
+          <select id="formworkType">
+            <option value="plywood">合板 t=12mm</option>
+            <option value="metal">ハンチメタルフォーム t=55mm</option>
+          </select>
+        </td>
+      </tr>
+      <tr><td>ハンチ根太材</td>
+        <td>
+          <select id="joistTypeIncline">
+            <option value="pipe">単管パイプ φ48.6</option>
+            <option value="box60">60角鋼管</option>
+            <option value="box100">100角鋼管</option>
+            <option value="stronglight">ストロングライト</option>
+          </select>
+        </td>
+        <td>ピッチ <input id="Ln1" type="number" value="20"> cm</td>
+      </tr>
+      <tr><td>中引き材</td>
+        <td>
+          <select id="midbeamTypeIncline">
+            <option value="pipe">単管パイプ φ48.6</option>
+            <option value="box60">60角鋼管</option>
+            <option value="box100">100角鋼管</option>
+            <option value="stronglight">ストロングライト</option>
+          </select>
+        </td>
+        <td>ピッチ <input id="Ln2" type="number" value="90"> cm</td>
+      </tr>
+      <tr><td>大引き材</td>
+        <td>
+          <select id="beamTypeIncline">
+            <option value="slide1800">スライドパワー (L≦1800)</option>
+            <option value="slide2400">スライドパワー L=1800~2400</option>
+            <option value="slideDoubleJoint">スライドパワー ダブル（中間ジョイントあり）</option>
+            <option value="slideDoubleNoJoint">スライドパワー ダブル（中間ジョイントなし）</option>
+            <option value="square90sugi">90角端太角（すぎ）</option>
+            <option value="square100sugi">100角端太角（すぎ）</option>
+          </select>
+        </td>
+        <td>ピッチ <input id="Ln3" type="number" value="25"> cm</td>
+      </tr>
+    </table>
+        <h3>【サポート】</h3>
+    <table>
+      <tr><td>種類</td>
+        <td>
+          <select id="supportType">
+            <option value="pipe">パイプサポート（19.6kN）</option>
+            <option value="hunch">ハンチサポート（34kN）</option>
+          </select>
+        </td>
+        <td>本数 <input id="supportCount" type="number" value="1" min="1"> 本</td>
+      </tr>
+      <tr><td>奥行 Sp1</td><td><input id="Sp1" type="number" value="90"> cm</td></tr>
+      <tr><td>奥行 Sp2</td><td><input id="Sp2" type="number" value="180"> cm</td></tr>
+    </table>
+
+    <button onclick="calculate()">計算</button>
+  </div>
+
+  <!-- 右：図 -->
+  <div style="flex: 1;">
+    <img src="WechatIMG1706.jpg" style="width: 100%; border: 1px solid #ccc;">
+  </div>
+</div>
+
+<hr>
+<h3>【計算結果】</h3>
+<div id="resultArea"></div>
+
+<script>
+  // ここに計算ロジックをまとめて入れます（修正済みの calculate() を含む）
+  function calculate() {
+  const H1 = parseFloat(document.getElementById("H1").value);
+  const W1 = parseFloat(document.getElementById("W1").value);
+  const t = parseFloat(document.getElementById("t").value);
+  const X1 = parseFloat(document.getElementById("X1").value);
+  const X2 = parseFloat(document.getElementById("X2").value);
+  const Y1 = parseFloat(document.getElementById("Y1").value);
+  const Y2 = parseFloat(document.getElementById("Y2").value);
+  const rho = parseFloat(document.getElementById("rho").value);
+  const W0 = parseFloat(document.getElementById("W0").value);
+  const Wc = parseFloat(document.getElementById("Wc").value);
+  const P_allow = parseFloat(document.getElementById("P_allow").value);
+  const Ln_slab = parseFloat(document.getElementById("Ln_slab").value);
+  const Sp1 = parseFloat(document.getElementById("Sp1").value);
+  const Sp2 = parseFloat(document.getElementById("Sp2").value);
+  
+  const floorHeight = parseFloat(document.getElementById("floorHeight").value);  // 作業床高さ（cm）
+  
+  const La = Math.sqrt(H1 * H1 + W1 * W1);
+  const theta = Math.atan(W1/H1) //　* 180 / Math.PI; // 转换为度数;
+  const W2 = Y1 + Y2 / 2;
+  const L1 = (X1 + X2) / 2;
+  const L2 = (Sp1 + Sp2) / 2;
+  const A1 = (t * W2) + (H1 * W1 / 2);
+  const A3 = (H1 * W1 / 2) + (t * W1);
+  const P1 = A1 * L1 * rho / 1000000;
+  const P2 = ((W2 - W1) * L1 + La * L1) * ((W0 + Wc) / 10000);
+  const P0 = P1 + P2;
+  const P5 = (A3 * L2)/1000000 * rho * Math.cos(theta) + (L2 * La) * ((W0+Wc)/10000);
+
+  const result = [];
+
+  if (Y1 < W1) {
+        alert("壁との離れ Y1 はハンチ幅 W1より小さい数値にはできません！！");
+        return;
+      }
+
+  // --- スラブ根太材（片持ち梁）
+  const slabType = document.getElementById("joistTypeSlab").value;
+  const joistProps = {
+    pipe: { Z: 3.83, I: 9.32, E: 21000, Fb: 23.7 },
+    box60: { Z: 9.44, I: 28.3, E: 21000, Fb: 16.3 },
+    box100: { Z: 37.5, I: 187, E: 21000, Fb: 16.3 },
+    stronglight: { Z: 62.36, I: 389.8, E: 7000, Fb: 14.71 }
+  };
+  const jSlab = joistProps[slabType];
+  const Ly = Y1 - W1;
+      if (Ly <= 0) {
+        alert("方持ち梁スパン Ly = Y1 - W1 が0以下です。");
+        return;
+      }
+  const qSlab = ((t / 100) * rho + W0 + Wc) / 10000 * Ln_slab;
+  const M_slab = qSlab * Math.pow(Ly, 2) / 2;
+  const σ_slab = M_slab / jSlab.Z;
+  const δ_slab = qSlab * Math.pow(Ly, 4) / (4 * jSlab.E * jSlab.I);
+  const resultSlab = (σ_slab <= jSlab.Fb && δ_slab <= 0.3) ? "OK" : "NG";
+
+  // --- ハンチ構造材
+  const formworkProps = {
+    plywood: { Z: 0.24, I: 0.144, E: 550, Fb: 1.37 },
+    metal: { Z: 5.86, I: 26.39, E: 21000, Fb: 15.68 }
+  };
+  const beamProps = {
+    slide1800: { Z: 145, I: 1405, E: 7030, Fb: 8.8 },
+    slide2400: { Z: 145, I: 1405, E: 7030, Fb: 6.8 },
+    slideDoubleJoint: { Z: 290, I: 2810, E: 7030, Fb: 8.5 },
+    slideDoubleNoJoint: { Z: 290, I: 2810, E: 7030, Fb: 11.8 },
+    square90sugi: { Z: 121.5, I: 546.7, E: 700, Fb: 1.03 },
+    square100sugi: { Z: 166.6, I: 833.3, E: 700, Fb: 1.03 }
+  };
+  const formworkType = document.getElementById("formworkType").value;
+  const jIncline = joistProps[document.getElementById("joistTypeIncline").value];
+  const mIncline = joistProps[document.getElementById("midbeamTypeIncline").value];
+  const bIncline = beamProps[document.getElementById("beamTypeIncline").value];
+  const Ln1 = parseFloat(document.getElementById("Ln1").value);
+  const Ln2 = parseFloat(document.getElementById("Ln2").value);
+  const Ln3 = parseFloat(document.getElementById("Ln3").value);
+  const Ls = Math.max(Sp1, Sp2);
+
+  function check(q, L, prop) {
+    const M = q * L * L / 8;
+    const σ = M / prop.Z;
+    const δ = (5 * q * Math.pow(L, 4)) / (384 * prop.E * prop.I);
+    return { σ, δ, ok: σ <= prop.Fb && δ <= 0.3 };
+  }
+
+  const q1 = (rho*(((2*t+H1)/2)/100)+W0+Wc) * Math.cos(theta) / 10000;
+  const q2 = q1*Ln1;
+  const q3 = q1*Ln2;
+  const q4 = q1*Ln3;
+
+  const res1 = check(q1, Ln1, formworkProps[formworkType]);
+  const res2 = check(q2, Ln2, jIncline);
+  const res3 = check(q3, Ln3, mIncline);
+  const res4 = check(q4, Ls, bIncline);
+
+  const supportCount = parseFloat(document.getElementById("supportCount").value) || 1;
+  const P5_per = P5 / supportCount;
+  const supportType = document.getElementById("supportType").value;
+  const P_support_allow = supportType === "pipe" ? 19.6 : 34;
+  const supportLabel = supportType === "pipe" ? "パイプサポート" : "ハンチサポート";
+  const supportCheck = P5_per <= P_support_allow ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>';
+
+  // --- 結果表示
+  let html = `<table><tr><th colspan="4">【支柱負担荷重計算】</th></tr>
+  <tr><td>ハンチ側支柱負担最大荷重/P0</td><td colspan="3">${P0.toFixed(2)} kN ／ ${P_allow} → ${(P0 <= P_allow) ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}</td></tr>
+  
+    
+  
+  <tr><th colspan="4">【スラブ根太材（片持ち梁）】　/　片持ち長さLy：${Ly}cm</th></tr>
+  <tr><td>スラブ根太材（片持ち梁）/σ/Fb</td>
+     <td>${σ_slab.toFixed(2)} ／ ${jSlab.Fb}</td>
+     <td>δ/0.3cm</td>
+     <td>${δ_slab.toFixed(2)} ／ 0.3cm → <span class="${resultSlab === 'OK' ? 'ok' : 'ng'}">${resultSlab}</span></td></tr>
+     
+  <tr><th colspan="4">【ハンチ構造材 計算結果】</th></tr>
+  <tr><td>部材 / 荷重 / ピッチ / 支点間</td><td>σ ／ Fb</td><td>δ ／ 0.3</td><td>判定</td></tr>
+  <tr><td>型枠材 / ${q1.toFixed(4)} /ピッチなし/ ${Ln1.toFixed(2)}</td><td>${res1.σ.toFixed(2)} ／ ${formworkProps[formworkType].Fb}</td><td>${res1.δ.toFixed(2)}</td><td>${res1.ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}</td></tr>
+  <tr><td>根太材 / ${q2.toFixed(4)} / ${Ln1.toFixed(2)} / ${Ln2.toFixed(2)}</td><td>${res2.σ.toFixed(2)} ／ ${jIncline.Fb}</td><td>${res2.δ.toFixed(2)}</td><td>${res2.ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}</td></tr>
+  <tr><td>中引き材 / ${q3.toFixed(4)} / ${Ln2.toFixed(2)} / ${Ln3.toFixed(2)}</td><td>${res3.σ.toFixed(2)} ／ ${mIncline.Fb}</td><td>${res3.δ.toFixed(2)}</td><td>${res3.ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}</td></tr>
+  <tr><td>大引き材 / ${q4.toFixed(4)} / ${Ln3.toFixed(2)} / ${Ls.toFixed(2)}</td><td>${res4.σ.toFixed(2)} ／ ${bIncline.Fb}</td><td>${res4.δ.toFixed(2)}</td><td>${res4.ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}</td></tr>
+  
+  <tr><td>P5（斜部荷重／本）</td>
+     <td>${P5_per.toFixed(2)} kN</td>
+     <td>${supportLabel}（許容 ${P_support_allow} kN）</td>
+     <td>${supportCheck}</td></tr>
+  </table>`;
+
+  document.getElementById("resultArea").innerHTML = html;
+}
+</script>
+</body>
+</html>
